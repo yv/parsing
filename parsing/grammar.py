@@ -142,6 +142,7 @@ or parser specification generation.
 """
 
 class SymbolSpec(str):
+    seq_cur = 0
     def __new__(cls, name=None, *args, **kwargs):
         if name is None:
             name = cls.__name__
@@ -149,8 +150,19 @@ class SymbolSpec(str):
         result = str.__new__(cls, name)
         return result
 
+    def __eq__(self, other):
+        if self.name != other.name:
+            return False
+        if self.seq != other.seq:
+            return False
+        if self.prec is not other.prec and self.prec != other.prec:
+            return False
+        return True
+
     def __init__(self, name, prec):
         assert type(name) == str
+        self.seq = SymbolSpec.seq_cur
+        SymbolSpec.seq_cur += 1
 
         self.name = name
         self.prec = prec
@@ -179,9 +191,11 @@ class SymbolSpec(str):
                 ret = False
         return ret
 
+in_h = False
+
 # AKA terminal symbol.
 class TokenSpec(SymbolSpec):
-    token_re = re.compile(r"([A-Za-z]\w*|'[^']+')")
+    token_re = re.compile(r"([A-Za-z][?+*]?\w*|'[^']+')")
 
     def __init__(self, name, tokenType, prec):
         assert is_token_factory(tokenType)
@@ -190,6 +204,8 @@ class TokenSpec(SymbolSpec):
 
         SymbolSpec.__init__(self, name, prec)
         self.tokenType = tokenType
+        if name == 'star' and in_h:
+            print("Create:", name, hex(id(self)), tokenType)
 
 # <$>.
 class EndOfInput(Token): pass
@@ -206,8 +222,19 @@ class EpsilonSpec(TokenSpec):
         TokenSpec.__init__(self, "<e>", Epsilon, "none")
 epsilon = EpsilonSpec()
 
+SHORTHAND = ['%choice', '%reduce']
+
 class NontermSpec(SymbolSpec):
     precedence_tok_re = re.compile(r'\[([A-Za-z]\w*)\]')
+
+    def __init__(self, name, nontermType, qualified, prec):
+        # assert issubclass(nontermType, Nonterm) # Add forward decl for Lyken.
+
+        SymbolSpec.__init__(self, name, prec)
+
+        self.qualified = qualified
+        self.nontermType = nontermType
+        self.productions = [] # Set.
 
     @classmethod
     def from_class(cls, nt_subclass, name=None, module=None):
@@ -220,13 +247,19 @@ class NontermSpec(SymbolSpec):
         if nt_subclass.__doc__ is None:
             dirtoks = ['%nonterm', name]
         else:
-            dirtoks = nt_subclass.__doc__.split(" ")
+            dirtoks = nt_subclass.__doc__.strip().split()
         is_start = (dirtoks[0] == '%start')
+        if dirtoks[0] in SHORTHAND:
+            dirtoks = ['%nonterm', name]
         symbol_name = None
         prec = None
         i = 1
         while i < len(dirtoks):
             tok = dirtoks[i]
+            #print("from_class dirtok:", tok)
+            if tok in ['%choice', '%reduce']:
+                # ignore shorthand notation parts
+                break
             m = NontermSpec.precedence_tok_re.match(tok)
             if m:
                 if i < len(dirtoks) - 1:
@@ -257,22 +290,17 @@ class NontermSpec(SymbolSpec):
         for k in d:
             v = d[k]
             if isinstance(v, types.FunctionType) and isinstance(v.__doc__, str):
-                    dirtoks = v.__doc__.split(" ")
-                    if dirtoks[0] == "%reduce":
-                        for i in range(1, len(dirtoks)):
-                            tok = dirtoks[i]
-                            m = TokenSpec.token_re.match(tok)
-                            if m and tok[0] == "'":
-                                literal_tokens.add(tok)
+                #print("find_literal_tokens:", nt_subclass.__name__, k, v.__doc__)
+                dirtoks = v.__doc__.split(" ")
+                if dirtoks[0] == "%reduce":
+                    for i in range(1, len(dirtoks)):
+                        tok = dirtoks[i]
+                        m = TokenSpec.token_re.match(tok)
+                        if m and tok[0] == "'":
+                            #print("find_literal_tokens:", tok, " in ", k)
+                            literal_tokens.add(tok)
 
-    def __init__(self, name, nontermType, qualified, prec):
-        # assert issubclass(nontermType, Nonterm) # Add forward decl for Lyken.
 
-        SymbolSpec.__init__(self, name, prec)
-
-        self.qualified = qualified
-        self.nontermType = nontermType
-        self.productions = [] # Set.
 
 class Production(int):
     seq = 0
