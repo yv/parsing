@@ -1,4 +1,4 @@
-from builtins import object
+from __future__ import print_function
 from re import compile as re_compile, escape as re_escape
 
 def is_symspec(symSpec):
@@ -220,27 +220,80 @@ def mktoken(name, prec='none', re=None, s=None, tokens=None, keyword=None, conve
 
     return TokenBuilder(token_re, prec, convert, keyword=keyword, name=name)
 
-def print_ast(nonterm, indent=0):
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+def print_ast(nonterm, indent=0, attribute_order=None):
+    assert isinstance(nonterm, Symbol), type(nonterm)
     s_indent = ' ' * indent
     if isinstance(nonterm, Nonterm):
-        print("%s%s[%s] %d-%d"%(
-            s_indent, nonterm.type, type(nonterm).__name__,
-            nonterm.range[0], nonterm.range[1]))
+        attr_type = nonterm.type
+        cls_type = type(nonterm).__name__
+        if attr_type != cls_type:
+            type_expr = '%s%s%s[%s]'%(
+                bcolors.BOLD, attr_type, bcolors.ENDC, cls_type)
+        else:
+            type_expr = '%s%s%s'%(bcolors.BOLD, attr_type, bcolors.ENDC)
+        if hasattr(nonterm, 'range'):
+            nt_range = nonterm.range
+            range_expr = '%d-%d'%(nt_range[0], nt_range[1])
+        else:
+            range_expr = '??-??'
+        print("%s%s %s"%(
+            s_indent, type_expr,
+            range_expr))
     else:
-        print("%s%s[%s] %d-%d '%s'" % (
-            s_indent, nonterm.type, type(nonterm).__name__,
-            nonterm.range[0], nonterm.range[1],
-            nonterm.word))
-    for k in sorted(nonterm.__dict__.keys()):
-        if k[0] != '_' and k not in ['type', 'range']:
-            v = getattr(nonterm, k)
-            if isinstance(v, Symbol):
-                print('%s  %s:'%(s_indent, k))
-                print_ast(v, indent+4)
-            elif isinstance(v, list):
-                print('%s  %s:'%(s_indent, k))
-                for val in v:
-                    if isinstance(val, Symbol):
-                        print_ast(val, indent+4)
-                    else:
-                        print('%s - %r'%(s_indent, val))
+        if nonterm.word != nonterm.val:
+            val_expr = "%r '%s'"%(nonterm.val, nonterm.word)
+        else:
+            val_expr = "'%s'"%(nonterm.word,)
+        if hasattr(nonterm, 'range'):
+            nt_range = nonterm.range
+            range_expr = '%d-%d'%(nt_range[0], nt_range[1])
+        else:
+            range_expr = '??-??'
+        print("%s%s%s%s[%s] %s %s" % (
+            s_indent,
+            bcolors.BOLD, nonterm.type, bcolors.ENDC,
+            type(nonterm).__name__,
+            range_expr,
+            val_expr))
+    d = nonterm.__dict__
+    def print_attribute(k):
+        v = getattr(nonterm, k)
+        if isinstance(v, Symbol):
+            print('%s  %s:' % (s_indent, k))
+            print_ast(v, indent + 4, attribute_order)
+        elif isinstance(v, list):
+            print('%s  %s:' % (s_indent, k))
+            for val in v:
+                if isinstance(val, Symbol):
+                    print_ast(val, indent + 4, attribute_order)
+                else:
+                    print('%s  - %r' % (s_indent, val))
+        elif isinstance(v, dict):
+            print('%s  %s:' % (s_indent, k))
+            for key in v:
+
+                val = v[key]
+                if isinstance(val, Symbol):
+                    print('%s    [%s]' % (s_indent, key))
+                    print_ast(val, indent + 6, attribute_order)
+                else:
+                    print('%s    [%s] %r' % (s_indent, key, val))
+
+    if attribute_order is not None:
+        for k in attribute_order:
+            if k in d:
+                print_attribute(k)
+    for k in sorted(d.keys()):
+        if k[0] != '_' and k not in ['type', 'range'] and (
+                        attribute_order is None or k not in attribute_order):
+            print_attribute(k)
