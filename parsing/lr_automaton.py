@@ -50,9 +50,6 @@ from __future__ import print_function
 
 from six.moves import cPickle
 
-from builtins import next
-from builtins import range
-
 """
 The Parsing module implements an LR(1) parser generator, as well as the
 runtime support for using a generated parser, via the Lr and Glr parser
@@ -135,7 +132,6 @@ The Parsing module implements the following exception classes:
 """
 __all__ = ["SpecError", "Parser", "Spec", "Lr", "Glr"]
 
-import re
 import sys
 import types
 
@@ -148,6 +144,13 @@ from parsing.grammar import Precedence, Production, \
     TokenSpec, SymbolSpec, NontermSpec, Item, \
     Epsilon, epsilon, EndOfInput, eoi, SpecError
 
+RETURN_NONE = object()
+
+class UnexpectedToken(SyntaxError):
+    def __init__(self, message, offset, token):
+        SyntaxError.__init__(self, message)
+        self.offset = offset
+        self.token = token
 
 class String(list):
     def __init__(self, args=None):
@@ -273,7 +276,7 @@ class ItemSet(dict):
         if item in self:
             self[item].lookahead.update(item.lookahead)
         else:
-            tItem = Item(item.production, item.dotPos, list(item.lookahead.keys()))
+            tItem = Item(item.production, item.dotPos, sorted(item.lookahead.keys()))
             self[tItem] = tItem
 
     # Merge an added item.
@@ -483,6 +486,11 @@ verbose : If true, print progress information while generating the
         assert graphFile is None or type(graphFile) == str
         assert type(verbose) == bool
 
+        if isinstance(grammar_adapter, types.ModuleType):
+            # Compatibility with parsing 1.5: use a ModuleAdapter for modules
+            from parsing.mod_adapt import ModuleAdapter
+            grammar_adapter = ModuleAdapter(grammar_adapter)
+
         self._skinny = skinny
         self._verbose = verbose
 
@@ -495,6 +503,7 @@ verbose : If true, print progress information while generating the
         self._precedences = {self._none.name: self._none,
                              self._split.name: self._split}
         self._nonterms = {}
+        self._aux_nonterms = {}
         self._tokens = {eoi.name: eoi, epsilon.name: epsilon}
         self._sym2spec = {EndOfInput: eoi, Epsilon: epsilon}
         self._productions = []
@@ -621,9 +630,12 @@ verbose : If true, print progress information while generating the
                                 break
 
                     if type(action) == ShiftAction:
-                        lines.append("%s %15r : %-6s %d [%s]" % \
+                        if sym.name == 'star' and 'X' in conflict:
+                            import ipdb
+                            ipdb.set_trace()
+                        lines.append("%s %15r : %-6s %d [%s] _%s _%s" % \
                           (conflict, sym, "shift", action.nextState, \
-                          sym.prec.name))
+                          sym.prec.name, hex(id(sym)), type(sym)))
                     else:
                         assert type(action) == ReduceAction
                         lines.append("%s %15r : %-6s %r" % \
@@ -734,8 +746,6 @@ the Parser class for parsing.
                 raise SpecError("Duplicate token name: %s" % tokenType.__doc__)
             if name in self._nonterms:
                 raise SpecError("Identical nonterm/token names: %s" % tokenType.__doc__)
-            if prec is None:
-                prec = "none"
             self._tokens[name] = token
             self._sym2spec[tokenType] = token
 
@@ -749,13 +759,54 @@ the Parser class for parsing.
             if name in self._tokens:
                 raise SpecError("Identical token/nonterm names: %s" % nontermType.__doc__)
             if name in self._nonterms:
-                raise SpecError("Duplicate nonterm name: %s" % nontermType.__doc__)
+                raise SpecError("Duplicate nonterm name: [%s]%s" % (name, nontermType.__doc__))
             self._nonterms[name] = nonterm
             self._sym2spec[nontermType] = nonterm
 
         self._userStartSym = userStart
         if not isinstance(self._userStartSym, NontermSpec):
             raise SpecError("No start symbol specified")
+
+    def aux_nonterm(self, name):
+        if name in self._aux_nonterms:
+            return self._aux_nonterms[name]
+        else:
+            def list_add(self, lst, x):
+                lst.append(x)
+                return lst
+            original_name = name[:-1]
+            variant = name[-1]
+            prec = self._precedences['none']
+            nt_class = Nonterm
+
+            module_name = nt_class.__module__
+            qualified = '%s.%s'%(module_name, name)
+            nonterm = NontermSpec(name, Nonterm, qualified, prec)
+            try:
+                sym = self._nonterms[original_name]
+            except KeyError:
+                sym = self._tokens[original_name]
+            if variant == '?':
+                rules_rhs = [[],[sym]]
+                reducers = [lambda self: RETURN_NONE, lambda self, x: x]
+            elif variant == '*':
+                rules_rhs = [[], [nonterm, sym]]
+                reducers = [lambda self: [], list_add]
+            elif variant == '+':
+                rules_rhs = [[sym], [nonterm, sym]]
+                reducers = [lambda self, x:[x], list_add]
+            else:
+                assert False, variant
+            # do stuff
+            for i, (rhs, reducer) in enumerate(zip(rules_rhs, reducers)):
+                prod = Production(
+                    reducer, "%s._%d" % (qualified, i),
+                    prec, nonterm, rhs)
+                assert prod not in nonterm.productions
+                nonterm.productions.append(prod)
+                self._productions.append(prod)
+            self._aux_nonterms[name] = nonterm
+            return nonterm
 
     # Resolve all symbolic (named) references.
     def _references(self, logFile, graphFile):
@@ -793,6 +844,10 @@ the Parser class for parsing.
                                     rhs_terms.append(self._tokens[tok])
                                 elif tok in self._nonterms:
                                     rhs.append(self._nonterms[tok])
+                                elif tok[-1] in '?+*' and (
+                                        tok[:-1] in self._nonterms or
+                                        tok[:-1] in self._tokens):
+                                    rhs.append(self.aux_nonterm(tok))
                                 else:
                                     raise SpecError(("Unknown symbol '%s' in reduction " \
                                       + "specification: %s") % (tok, v.__doc__))
@@ -823,6 +878,7 @@ the Parser class for parsing.
                         assert prod not in nonterm.productions
                         nonterm.productions.append(prod)
                         self._productions.append(prod)
+        self._nonterms.update(self._aux_nonterms)
         if self._verbose:
             ntokens = len(self._tokens) - 1
             nnonterms = len(self._nonterms) - 1
@@ -1056,7 +1112,7 @@ the Parser class for parsing.
                 print("Parsing.Spec: Unequal number of precedences (%d vs %d)" \
                   % (len(self._precedences), len(other._precedences)))
             ret = "itemsets"
-        for key in self._precedences:
+        for key in sorted(self._precedences):
             if key not in other._precedences:
                 if self._verbose:
                     print("Parsing.Spec: Missing precedence: %s" % key)
@@ -1472,6 +1528,9 @@ the Parser class for parsing.
         assert type(state) == dict
         assert isinstance(sym, SymbolSpec)
         assert isinstance(action, Action)
+        if not hasattr(sym, 'seq'):
+            import ipdb
+            ipdb.set_trace()
 
         if sym not in state:
             state[sym] = [action]
@@ -1479,6 +1538,8 @@ the Parser class for parsing.
             actions = state[sym]
             if action not in actions:
                 state[sym].append(action)
+        for k in state:
+            k.seq
 
     # Look for action ambiguities and resolve them if possible.
     def _disambiguate(self):
@@ -1735,13 +1796,18 @@ Signal end-of-input to the parser.
         while True:
             top = self._stack[-1]
             if symSpec not in self._spec._action[top[1]]:
-                #print(symSpec, hex(id(symSpec)), hex(hash(symSpec)))
-                #for k in self._spec._action[top[1]]:
-                #    print("action:", k, hex(id(k)), hex(hash(k)), k == symSpec)
-                #print(self._spec._itemSets[top[1]])
-                #print(self._spec._action[top[1]])
-                #print(self._spec._goto[top[1]])
-                raise SyntaxError("Unexpected token: %r" % sym)
+                print(symSpec, hex(id(symSpec)), hex(hash(symSpec)))
+                for k in self._spec._action[top[1]]:
+                    print("action:", k, hex(id(k)), hex(hash(k)), k == symSpec)
+                print(self._spec._itemSets[top[1]])
+                print(self._spec._action[top[1]])
+                print(self._spec._goto[top[1]])
+                try:
+                    offset = sym.range[0]
+                except AttributeError:
+                    offset = None
+                raise UnexpectedToken(
+                    "Unexpected token: %r" % sym, offset, sym)
 
             actions = self._spec._action[top[1]][symSpec]
             assert len(actions) == 1
@@ -1789,7 +1855,21 @@ Signal end-of-input to the parser.
         sym.type = production.lhs.name
         if rhs:
             try:
-                sym.range = [rhs[0].range[0], rhs[-1].range[1]]
+                first_idx = 0
+                last_idx = len(rhs) - 1
+                # skip epsilon productions, look into lists (for x* and x+)
+                while last_idx >= first_idx and not rhs[last_idx]:
+                    last_idx -= 1
+                while last_idx >= first_idx and not rhs[first_idx]:
+                    first_idx += 1
+                if last_idx >= first_idx:
+                    last_rhs = rhs[last_idx]
+                    if isinstance(last_rhs, list):
+                        last_rhs = last_rhs[-1]
+                    first_rhs = rhs[first_idx]
+                    if isinstance(first_rhs, list):
+                        first_rhs = first_rhs[0]
+                    sym.range = [first_rhs.range[0], last_rhs.range[1]]
             except AttributeError:
                 pass
         nRhs = len(rhs)
@@ -1800,6 +1880,8 @@ Signal end-of-input to the parser.
         # methods cumbersome, so translate None here.
         if r is None:
             r = sym
+        elif r is RETURN_NONE:
+            r = None
 
         return r
 
@@ -1928,8 +2010,9 @@ Feed a token to the parser.
         """
 Signal end-of-input to the parser.
 """
-        token = EndOfInput(self)
-        self.token(token)
+        grammar_eoi = self._spec._sym2spec[EndOfInput]
+        token = EndOfInput(grammar_eoi)
+        self.token(token, grammar_eoi)
 
         # Gather the start symbols from the stacks.
         self._start = []

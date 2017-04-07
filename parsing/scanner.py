@@ -1,6 +1,9 @@
-from builtins import object
 from re import compile as re_compile
 
+class ScannerError(SyntaxError):
+    def __init__(self, message, position):
+        SyntaxError.__init__(self, message)
+        self.offset = position
 
 class Scanner(object):
     def __init__(self, token_classes, re_whitespace):
@@ -41,7 +44,8 @@ class Scanner(object):
                     if max_str in self.keywords:
                         max_cls, max_spec = self.keywords[max_str]
             if max_idx == 0:
-                raise SyntaxError('Scanning failed at position %s' % (idx,))
+                raise ScannerError(
+                    'Scanning failed at position %s "%s"' % (idx,string[idx]), idx)
             token = max_cls(max_spec, max_str, range=(idx, max_idx))
             if callback is None:
                 parser.token(token, max_spec)
