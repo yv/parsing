@@ -1,5 +1,8 @@
 *.pyc
 *.pyo
+*.log
+*.pickle
+*.dot
 __pycache__/
 /build
 /dist

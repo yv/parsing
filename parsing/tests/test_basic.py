@@ -49,7 +49,7 @@ class TestParsing(unittest.TestCase):
                 parsing.Glr.__init__(self, spec)
 
         from parsing.tests.specs import b
-        spec = parsing.Spec(b, skinny=False)
+        spec = parsing.Spec(b)
 
         parser = TestParser(spec)
         parser.token_from_class(b.id)
@@ -108,7 +108,6 @@ class TestParsing(unittest.TestCase):
     def test_basic_h(self):
         import parsing.grammar
         import parsing.lr_automaton
-        #parsing.lr_automaton.StringSpec.cache = {}
         parsing.grammar.in_h = True
         class TestGlrParser(parsing.Glr):
             def __init__(self, spec):

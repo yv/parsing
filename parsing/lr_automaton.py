@@ -1,4 +1,4 @@
-#===============================================================================
+# ===============================================================================
 # Copyright (c) 2007 Jason Evans <jasone@canonware.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -18,7 +18,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-#===============================================================================
+# ===============================================================================
 #
 # Release history:
 #
@@ -45,7 +45,7 @@
 #
 # 1.0 (19 March 2007): Initial public release.
 #
-#===============================================================================
+# ===============================================================================
 from __future__ import print_function
 
 from six.moves import cPickle
@@ -146,11 +146,13 @@ from parsing.grammar import Precedence, Production, \
 
 RETURN_NONE = object()
 
+
 class UnexpectedToken(SyntaxError):
     def __init__(self, message, offset, token):
         SyntaxError.__init__(self, message)
         self.offset = offset
         self.token = token
+
 
 class String(list):
     def __init__(self, args=None):
@@ -181,7 +183,7 @@ class String(list):
     def __eq__(self, other):
         if len(self) == len(other):
             for i in range(len(self)):
-                if self[i] != other[i]:
+                if not self[i] == other[i]:
                     return False
             return True
         else:
@@ -197,6 +199,7 @@ class String(list):
     def __hash__(self):
         return self.hash
 
+
 class StringSpec(object):
     cache = {}
 
@@ -210,20 +213,20 @@ class StringSpec(object):
             self.firstSet = StringSpec.cache[s]
         else:
             # Calculate the first set for the string encoded by the s vector.
-            self.firstSet = [] # Set.
-            mergeEpsilon = True
+            self.firstSet = []  # Set.
+            merge_epsilon = True
             for sym in self.s:
-                hasEpsilon = False
+                has_epsilon = False
                 for elm in sym.firstSet:
                     if elm == epsilon:
-                        hasEpsilon = True
+                        has_epsilon = True
                     elif sym not in self.firstSet:
                         self.firstSet.append(elm)
-                if not hasEpsilon:
-                    mergeEpsilon = False
+                if not has_epsilon:
+                    merge_epsilon = False
                     break
             # Merge epsilon if it was in the first set of every symbol.
-            if mergeEpsilon:
+            if merge_epsilon:
                 self.firstSet.append(epsilon)
 
             # Cache the result.
@@ -241,8 +244,8 @@ class ItemSet(dict):
         added = [item for item in six.iterkeys(self._added)]
         added.sort()
         return "ItemSet(kernel: %s, added: %r)" % \
-          (", ".join(["%r" % item for item in kernel]), \
-          ", ".join(["%r" % item for item in added]))
+               (", ".join(["%r" % item for item in kernel]), \
+                ", ".join(["%r" % item for item in added]))
 
     def __hash__(self):
         # This works because integers never overflow, and addition is
@@ -274,6 +277,7 @@ class ItemSet(dict):
         assert item.production.lhs.name == "<S>" or item.dotPos != 0
 
         if item in self:
+            print("item:",item,self[item] is item, self[item] == item)
             self[item].lookahead.update(item.lookahead)
         else:
             tItem = Item(item.production, item.dotPos, sorted(item.lookahead.keys()))
@@ -302,11 +306,11 @@ class ItemSet(dict):
             item = items[i]
             rhs = item.production.rhs
             dotPos = item.dotPos
-            if dotPos < len(rhs) \
-              and isinstance(rhs[dotPos], NontermSpec):
+            if (dotPos < len(rhs) and
+                    isinstance(rhs[dotPos], NontermSpec)):
                 for lookahead in list(item.lookahead.keys()):
-                    string = StringSpec( \
-                      String(rhs[dotPos+1:] + [lookahead]))
+                    string = StringSpec(
+                        String(rhs[dotPos + 1:] + [lookahead]))
                     lhs = rhs[dotPos]
                     for prod in lhs.productions:
                         tItem = Item(prod, 0, string.firstSet)
@@ -320,11 +324,11 @@ class ItemSet(dict):
         for item in six.iterkeys(self):
             rhs = item.production.rhs
             dotPos = item.dotPos
-            if dotPos < len(rhs) and isinstance(rhs[dotPos], \
-              NontermSpec):
+            if dotPos < len(rhs) and isinstance(
+                    rhs[dotPos], NontermSpec):
                 for lookahead in six.iterkeys(item.lookahead):
-                    string = StringSpec(String(rhs[dotPos+1:] + \
-                      [lookahead]))
+                    string = StringSpec(
+                        String(rhs[dotPos + 1:] + [lookahead]))
                     lhs = rhs[dotPos]
                     for prod in lhs.productions:
                         tItem = Item(prod, 0, string.firstSet)
@@ -343,10 +347,15 @@ class ItemSet(dict):
                 ret.append(tItem)
         return ret
 
-    # Merge the kernel of other into this ItemSet, then update the closure.
-    # It is not sufficient to copy other's added items, since other has not
-    # computed its closure.
     def merge(self, other):
+        """
+        Merge the kernel of other into this ItemSet, then update the closure.
+        It is not sufficient to copy other's added items, since other has not
+        computed its closure.
+        
+        :param other: another ItemSet
+        :return: True
+        """
         items = []
         for item in six.iterkeys(other):
             if item in self:
@@ -360,8 +369,8 @@ class ItemSet(dict):
                     tItem = Item(item.production, item.dotPos, tLookahead)
                     items.append(tItem)
             else:
-                tItem = Item(item.production, item.dotPos, \
-                  list(item.lookahead.keys()))
+                tItem = Item(
+                    item.production, item.dotPos, list(item.lookahead.keys()))
                 self[tItem] = tItem
                 items.append(tItem)
 
@@ -371,9 +380,15 @@ class ItemSet(dict):
         else:
             return False
 
-    # Determine if self and other are weakly compatible, as defined by the
-    # Pager(1977) algorithm.
     def weakCompat(self, other):
+        """
+        Determine if self and other are weakly compatible, as defined by the
+        Pager(1977) algorithm.
+    
+        :param other: an itemset that is a candidate for merging
+        :type other: ItemSet
+        :return: 
+        """
         # Check for identical kernel LR(0) items, and pair items, for later use.
         if len(self) != len(other):
             return False
@@ -385,17 +400,20 @@ class ItemSet(dict):
             pairs.append((sItem, oItem))
 
         # Check for lookahead compatibility.
-        for i in range(len(pairs)-1):
+        # Two items i and j are lookahead incompatible iff there is
+        # no lookahead item shared between i and j in either self or other
+        # but merging the items would yield a common lookahead item.
+        for i in range(len(pairs) - 1):
             iPair = pairs[i]
             isItem = iPair[0]
             ioItem = iPair[1]
-            for j in range(i+1, len(pairs)):
+            for j in range(i + 1, len(pairs)):
                 jPair = pairs[j]
                 jsItem = jPair[0]
                 joItem = jPair[1]
 
-                if isItem.lookaheadDisjoint(joItem) \
-                  and ioItem.lookaheadDisjoint(jsItem):
+                if (isItem.lookaheadDisjoint(joItem)
+                        and ioItem.lookaheadDisjoint(jsItem)):
                     pass
                 elif not isItem.lookaheadDisjoint(jsItem):
                     pass
@@ -405,16 +423,21 @@ class ItemSet(dict):
                     return False
         return True
 
+
 class Action(object):
     """
-Abstract base class, subclassed by {Shift,Reduce}Action.
-"""
-    def __init__(self): pass
+    Abstract base class, subclassed by {Shift,Reduce}Action.
+    """
+
+    def __init__(self):
+        pass
+
 
 class ShiftAction(Action):
     """
 Shift action, with assocated nextState.
 """
+
     def __init__(self, nextState):
         Action.__init__(self)
         self.nextState = nextState
@@ -429,10 +452,12 @@ Shift action, with assocated nextState.
             return False
         return True
 
+
 class ReduceAction(Action):
     """
 Reduce action, with associated production.
 """
+
     def __init__(self, production):
         Action.__init__(self)
         self.production = production
@@ -447,12 +472,14 @@ Reduce action, with associated production.
             return False
         return True
 
+
 class Spec(object):
     """
 The Spec class contains the read-only data structures that the Parser
 class needs in order to parse input.  Parser generation results in a
 Spec instance, which can then be shared by multiple Parser instances.
 """
+
     def __init__(self, grammar_adapter, pickleFile=None, pickleMode="rw",
                  skinny=True, logFile=None, graphFile=None, verbose=False):
         """
@@ -515,7 +542,7 @@ verbose : If true, print progress information while generating the
         # Everything below this point is computed from the above (once
         # introspection is complete).
 
-        self._itemSets = [] # Each element corresponds to an element in _action.
+        self._itemSets = []  # Each element corresponds to an element in _action.
         self._itemSetsHash = None
         # LR parsing tables.  The tables conceptually contain one state per row,
         # where each row contains one element per symbol.  The table is
@@ -527,29 +554,36 @@ verbose : If true, print progress information while generating the
         self._startState = None
         self._nActions = 0
         self._nConflicts = 0
-        self._nImpure = 0 # Number of LR impurities (does not affect GLR).
+        self._nImpure = 0  # Number of LR impurities (does not affect GLR).
 
         # Introspect modules and generate parse tables.
         self._prepare(grammar_adapter, pickleFile, pickleMode, logFile, graphFile)
 
     def __getPureLR(self):
         return (self._nConflicts + self._nImpure == 0)
-    def __setPureLR(self): raise AttributeError
+
+    def __setPureLR(self):
+        raise AttributeError
+
     pureLR = property(__getPureLR, __setPureLR)
 
-    def __getConflicts(self): return self._nConflicts
-    def __setConflicts(self): raise AttributeError
+    def __getConflicts(self):
+        return self._nConflicts
+
+    def __setConflicts(self):
+        raise AttributeError
+
     conflicts = property(__getConflicts, __setConflicts)
 
     def __repr__(self):
         if self._skinny:
             # Print a very reduced summary, since most info has been discarded.
             return "Parsing.Spec: %d states, %d actions (%d split)" % \
-              (len(self._action), self._nActions, self._nImpure)
+                   (len(self._action), self._nActions, self._nImpure)
 
         lines = []
 
-        #=======================================================================
+        # =======================================================================
         lines.append("Precedences:")
         deco = [(prec.name, prec) for prec in six.itervalues(self._precedences)]
         deco.sort()
@@ -581,20 +615,28 @@ verbose : If true, print progress information while generating the
         lines.append("Item sets:")
         for i in range(len(self._itemSets)):
             lines.append("  %d: %r" % (i, self._itemSets[i]))
-        #=======================================================================
+        # =======================================================================
 
         ntokens = len(self._tokens) - 1
         nnonterms = len(self._nonterms) - 1
         nproductions = len(self._productions) - 1
         nstates = len(self._action)
-        lines.append(("Parsing.Spec: %d token%s, %d non-terminal%s, " + \
-          "%d production%s, %d state%s, %d action%s (%d split):") % \
-          (ntokens, ("s", "")[ntokens == 1], \
-          nnonterms, ("s", "")[nnonterms == 1], \
-          nproductions, ("s", "")[nproductions == 1], \
-          nstates, ("s", "")[nstates == 1], \
-          self._nActions, ("s", "")[self._nActions == 1], \
-          self._nImpure))
+
+        def plural(n):
+            if n == 1:
+                return ''
+            else:
+                return 's'
+
+        lines.append((
+                         "Parsing.Spec: %d token%s, %d non-terminal%s, " +
+                         "%d production%s, %d state%s, %d action%s (%d split):") % (
+                         ntokens, plural(ntokens),
+                         nnonterms, plural(nnonterms),
+                         nproductions, plural(nproductions),
+                         nstates, plural(nstates),
+                         self._nActions, plural(self._nActions == 1),
+                         self._nImpure))
         if self.pureLR:
             lines.append("Algorithm compatibility: GLR, LR")
         elif self._nConflicts == 0:
@@ -605,12 +647,12 @@ verbose : If true, print progress information while generating the
         for i in range(len(self._action)):
             lines.append("  %s" % ("=" * 78))
             lines.append("  State %d:%s" % \
-              (i, ("", " (start state)")[self._startState == i]))
+                         (i, ("", " (start state)")[self._startState == i]))
             items = [item for item in self._itemSets[i]]
             items.sort()
             for item in items:
                 lines.append(" %s%s" % (" " * (len("%d" % i) + 9),
-                  item.lr0__repr__()))
+                                        item.lr0__repr__()))
             lines.append("    Goto:")
             syms = [sym for sym in self._goto[i]]
             syms.sort()
@@ -633,13 +675,13 @@ verbose : If true, print progress information while generating the
                         if sym.name == 'star' and 'X' in conflict:
                             import ipdb
                             ipdb.set_trace()
-                        lines.append("%s %15r : %-6s %d [%s] _%s _%s" % \
-                          (conflict, sym, "shift", action.nextState, \
-                          sym.prec.name, hex(id(sym)), type(sym)))
+                        lines.append("%s %15r : %-6s %d [%s] _%s" % \
+                                     (conflict, sym, "shift", action.nextState, \
+                                      sym.prec.name, sym.tokenType))
                     else:
                         assert type(action) == ReduceAction
                         lines.append("%s %15r : %-6s %r" % \
-                          (conflict, sym, "reduce", action.production))
+                                     (conflict, sym, "reduce", action.production))
 
         ret = "\n".join(lines)
         return ret
@@ -658,7 +700,7 @@ the Parser class for parsing.
         assert self._startSym is None
         assert isinstance(self._userStartSym, NontermSpec)
         self._startSym = NontermSpec("<S>", NontermStart,
-          "%s.NontermStart" % __name__, self._none)
+                                     "%s.NontermStart" % __name__, self._none)
         self._startProd = Production(NontermStart.reduce,
                                      "%s.NontermStart.reduce" % __name__,
                                      self._none, self._startSym, \
@@ -684,7 +726,7 @@ the Parser class for parsing.
             # valid for parsing.
             if self._nConflicts != 0:
                 raise SpecError("Compatible pickle is invalid due to conflicts (%d)" % \
-                  self._nConflicts)
+                                self._nConflicts)
         if compat in ["itemsets", "incompatible"]:
             # Generate LR(1) parsing tables.
             self._lr()
@@ -713,8 +755,6 @@ the Parser class for parsing.
             del self._tokens
             del self._productions
 
-
-
     # Introspect modules and find special parser declarations.  In order to be
     # a special class, the class must both 1) be subclassed from Token or
     # Nonterm, and 2) contain the appropriate %foo docstring.
@@ -734,7 +774,7 @@ the Parser class for parsing.
                 raise SpecError("Identical token/precedence names: %s" % name)
             if name in self._nonterms:
                 raise SpecError("Identical nonterm/precedence names: %s" % \
-                  name)
+                                name)
             self._precedences[name] = prec
 
         for token in adapter.get_tokens():
@@ -755,7 +795,7 @@ the Parser class for parsing.
             nontermType = nonterm.nontermType
             if name in self._precedences:
                 raise SpecError("Identical precedence/nonterm names: %s" % \
-                  nontermType.__doc__)
+                                nontermType.__doc__)
             if name in self._tokens:
                 raise SpecError("Identical token/nonterm names: %s" % nontermType.__doc__)
             if name in self._nonterms:
@@ -774,27 +814,28 @@ the Parser class for parsing.
             def list_add(self, lst, x):
                 lst.append(x)
                 return lst
+
             original_name = name[:-1]
             variant = name[-1]
             prec = self._precedences['none']
             nt_class = Nonterm
 
             module_name = nt_class.__module__
-            qualified = '%s.%s'%(module_name, name)
+            qualified = '%s.%s' % (module_name, name)
             nonterm = NontermSpec(name, Nonterm, qualified, prec)
             try:
                 sym = self._nonterms[original_name]
             except KeyError:
                 sym = self._tokens[original_name]
             if variant == '?':
-                rules_rhs = [[],[sym]]
+                rules_rhs = [[], [sym]]
                 reducers = [lambda self: RETURN_NONE, lambda self, x: x]
             elif variant == '*':
                 rules_rhs = [[], [nonterm, sym]]
                 reducers = [lambda self: [], list_add]
             elif variant == '+':
                 rules_rhs = [[sym], [nonterm, sym]]
-                reducers = [lambda self, x:[x], list_add]
+                reducers = [lambda self, x: [x], list_add]
             else:
                 assert False, variant
             # do stuff
@@ -836,32 +877,35 @@ the Parser class for parsing.
                         prec = None
                         for i in range(1, len(dirtoks)):
                             tok = dirtoks[i]
-                            m = TokenSpec.token_re.match(tok)
+                            m = NontermSpec.token_re.match(tok)
                             if m:
                                 # Symbolic reference.
                                 if tok in self._tokens:
+                                    # token
                                     rhs.append(self._tokens[tok])
                                     rhs_terms.append(self._tokens[tok])
                                 elif tok in self._nonterms:
+                                    # nonterminal
                                     rhs.append(self._nonterms[tok])
                                 elif tok[-1] in '?+*' and (
-                                        tok[:-1] in self._nonterms or
-                                        tok[:-1] in self._tokens):
+                                                tok[:-1] in self._nonterms or
+                                                tok[:-1] in self._tokens):
+                                    # aux symbol
                                     rhs.append(self.aux_nonterm(tok))
                                 else:
                                     raise SpecError(("Unknown symbol '%s' in reduction " \
-                                      + "specification: %s") % (tok, v.__doc__))
+                                                     + "specification: %s") % (tok, v.__doc__))
                             else:
                                 m = NontermSpec.precedence_tok_re.match(tok)
                                 if m:
                                     # Precedence.
                                     if i < len(dirtoks) - 1:
                                         raise SpecError(("Precedence must come last in " \
-                                          + "reduction specification: %s") % \
-                                          v.__doc__)
+                                                         + "reduction specification: %s") % \
+                                                        v.__doc__)
                                     if m.group(1) not in self._precedences:
                                         raise SpecError(("Unknown precedence in reduction " \
-                                          + "specification: %s") % v.__doc__)
+                                                         + "specification: %s") % v.__doc__)
                                     prec = self._precedences[m.group(1)]
 
                         if prec is None:
@@ -874,7 +918,7 @@ the Parser class for parsing.
                                 prec = nonterm.prec
 
                         prod = Production(v, "%s.%s" % (nonterm.qualified, member_name), \
-                          prec, nonterm, rhs)
+                                          prec, nonterm, rhs)
                         assert prod not in nonterm.productions
                         nonterm.productions.append(prod)
                         self._productions.append(prod)
@@ -884,9 +928,9 @@ the Parser class for parsing.
             nnonterms = len(self._nonterms) - 1
             nproductions = len(self._productions) - 1
             print("Parsing.Spec: %d token%s, %d non-terminal%s, %d production%s" % \
-              (ntokens, ("s", "")[ntokens == 1], \
-              nnonterms, ("s", "")[nnonterms == 1], \
-              nproductions, ("s", "")[nproductions == 1]))
+                  (ntokens, ("s", "")[ntokens == 1], \
+                   nnonterms, ("s", "")[nnonterms == 1], \
+                   nproductions, ("s", "")[nproductions == 1]))
 
     # Build the graph of Precedence relationships.
     def _resolvePrec(self, graphFile):
@@ -895,7 +939,7 @@ the Parser class for parsing.
             for precBName in precA.relationships:
                 if precBName not in self._precedences:
                     raise SpecError(("Precedence '%s' specifies a relationship with " + \
-                      "unknown Precedence '%s'") % (precA, precBName))
+                                     "unknown Precedence '%s'") % (precA, precBName))
                 precB = self._precedences[precBName]
                 rel = precA.relationships[precBName]
                 if rel == "=":
@@ -925,21 +969,21 @@ the Parser class for parsing.
             f = open(graphFile, "w+")
             if self._verbose:
                 print("Parsing.Spec: Writing graphviz precedence graph to '%s'..." \
-                  % graphFile)
+                      % graphFile)
             print('digraph Precedence {', file=f)
             print('    graph [bgcolor=black, labeljust="l"]', file=f)
             print(('    node [shape=record, style=filled, color=black, ' + \
-              'fillcolor=gray, fontname=Helvetica, fontsize=10.0]'), file=f)
+                   'fillcolor=gray, fontname=Helvetica, fontsize=10.0]'), file=f)
             print('    edge [color=gray]', file=f)
             for precA in six.itervalues(self._precedences):
                 if precA is next(iter(precA.equiv)):
                     print(('    Precedence_%s [label="{%s}"]') % (precA.name, \
-                      "\\n".join(["%s (%s)" % (p.name, p.assoc) \
-                      for p in precA.equiv])), file=f)
+                                                                  "\\n".join(["%s (%s)" % (p.name, p.assoc) \
+                                                                              for p in precA.equiv])), file=f)
                     for precB in precA.dominators:
                         print('    Precedence_%s -> Precedence_%s' % \
-                          (next(iter(precB.equiv)).name, \
-                          next(iter(precA.equiv)).name), file=f)
+                              (next(iter(precB.equiv)).name, \
+                               next(iter(precA.equiv)).name), file=f)
             print('}', file=f)
             f.close()
 
@@ -965,8 +1009,8 @@ the Parser class for parsing.
             for precB in set((precA,)) | precA.equiv:
                 if precB in precA.dominators:
                     cycles.append( \
-                      "Precedence relationship cycle involving '%s'" % \
-                      precA.name)
+                        "Precedence relationship cycle involving '%s'" % \
+                        precA.name)
         if len(cycles) > 0:
             raise SpecError("\n".join(cycles))
 
@@ -983,7 +1027,7 @@ the Parser class for parsing.
         if file != None and "w" in mode:
             if self._verbose:
                 print("Parsing.Spec: Creating %s Spec pickle in %s..." % \
-                  (("fat", "skinny")[self._skinny], file))
+                      (("fat", "skinny")[self._skinny], file))
             f = open(file, "wb")
             six.moves.cPickle.dump(self, f, protocol=six.moves.cPickle.HIGHEST_PROTOCOL)
             f.close()
@@ -994,14 +1038,14 @@ the Parser class for parsing.
         if file != None and "r" in mode:
             if self._verbose:
                 print("Parsing.Spec: Attempting to use pickle from file \"%s\"..." \
-                  % file)
+                      % file)
             try:
                 f = open(file, "rb")
             except IOError:
                 if self._verbose:
                     error = sys.exc_info()
                     print("Parsing.Spec: Pickle open failed: Exception %s: %s" \
-                      % (error[0], error[1]))
+                          % (error[0], error[1]))
                 return "incompatible"
 
             # Any exception at all in unpickling can be assumed to be due to
@@ -1012,19 +1056,19 @@ the Parser class for parsing.
                 if self._verbose:
                     error = sys.exc_info()
                     print("Parsing.Spec: Pickle load failed: Exception %s: %s" \
-                      % (error[0], error[1]))
+                          % (error[0], error[1]))
                 return "incompatible"
 
             compat = self._compatible(spec)
             if compat == "incompatible":
                 if self._verbose:
                     print("Parsing.Spec: Pickle in \"%s\" is incompatible." % \
-                      file)
+                          file)
                 return compat
 
             if self._verbose:
                 print("Parsing.Spec: Using %s pickle in \"%s\" (%s)..." \
-                  % (("fat", "skinny")[spec._skinny], file, compat))
+                      % (("fat", "skinny")[spec._skinny], file, compat))
 
             if compat in ["compatible", "repickle"]:
                 # Copy spec's data structures.
@@ -1110,7 +1154,7 @@ the Parser class for parsing.
         if len(self._precedences) != len(other._precedences):
             if self._verbose:
                 print("Parsing.Spec: Unequal number of precedences (%d vs %d)" \
-                  % (len(self._precedences), len(other._precedences)))
+                      % (len(self._precedences), len(other._precedences)))
             ret = "itemsets"
         for key in sorted(self._precedences):
             if key not in other._precedences:
@@ -1121,20 +1165,20 @@ the Parser class for parsing.
             precA = self._precedences[key]
             precB = other._precedences[key]
             if precA.name != precB.name \
-              or precA.assoc != precB.assoc \
-              or len(precA.relationships) != len(precB.relationships):
+                    or precA.assoc != precB.assoc \
+                    or len(precA.relationships) != len(precB.relationships):
                 if self._verbose:
                     print("Parsing.Spec: Incompatible precedences: %r vs. %r" \
-                      % (precA, precB))
+                          % (precA, precB))
                 ret = "itemsets"
                 continue
             for prec in precA.relationships:
                 rel = precA.relationships[prec]
                 if prec not in precB.relationships \
-                  or precB.relationships[prec] != rel:
+                        or precB.relationships[prec] != rel:
                     if self._verbose:
                         print("Parsing.Spec: Incompatible precedences: %r vs. %r" \
-                          % (precA, precB))
+                              % (precA, precB))
                     ret = "itemsets"
                     break
 
@@ -1142,7 +1186,7 @@ the Parser class for parsing.
         if len(self._nonterms) != len(other._nonterms):
             if self._verbose:
                 print("Parsing.Spec: Unequal number of non-terminals (%d vs %d)" \
-                  % (len(self._nonterms), len(other._nonterms)))
+                      % (len(self._nonterms), len(other._nonterms)))
             return "incompatible"
         for key in self._nonterms:
             if key not in other._nonterms:
@@ -1152,44 +1196,44 @@ the Parser class for parsing.
             nontermA = self._nonterms[key]
             nontermB = other._nonterms[key]
             if nontermA.name != nontermB.name \
-              or nontermA.qualified != nontermB.qualified \
-              or nontermA.nontermType != nontermB.nontermType:
+                    or nontermA.qualified != nontermB.qualified \
+                    or nontermA.nontermType != nontermB.nontermType:
                 if self._verbose:
                     print("Parsing.Spec: Incompatible non-terminals: %r vs. %r" \
-                      % (nontermA, nontermB))
+                          % (nontermA, nontermB))
                 return "incompatible"
             if nontermA.prec.name != nontermB.prec.name:
                 if self._verbose:
                     print(("Parsing.Spec: Differing precedences for " + \
-                      "non-terminal: %r") % nontermA)
+                           "non-terminal: %r") % nontermA)
                 ret = "itemsets"
 
             # Productions.
             if len(nontermA.productions) != len(nontermB.productions):
                 if self._verbose:
                     print("Parsing.Spec: Unequal number of productions (%d vs %d)" \
-                      % (len(self._productions) - 1, \
-                      len(other._productions) - 1))
+                          % (len(self._productions) - 1, \
+                             len(other._productions) - 1))
                 return "incompatible"
             for prodA in nontermA.productions:
                 match = False
                 for prodB in nontermB.productions:
                     if prodA.qualified == prodB.qualified \
-                      and prodA.lhs.name == prodB.lhs.name \
-                      and len(prodA.rhs) == len(prodB.rhs):
+                            and prodA.lhs.name == prodB.lhs.name \
+                            and len(prodA.rhs) == len(prodB.rhs):
                         match = True
                         for i in range(len(prodA.rhs)):
                             if prodA.rhs[i].name != prodB.rhs[i].name:
                                 match = False
                                 if self._verbose:
                                     print(("Parsing.Spec: Incompatible" + \
-                                      " productions: %r vs. %r") \
-                                      % (prodA, prodB))
+                                           " productions: %r vs. %r") \
+                                          % (prodA, prodB))
                                 break
                         if prodA.prec.name != prodB.prec.name:
                             if self._verbose:
                                 print(("Parsing.Spec: Differing precedences " + \
-                                  "for production: %r") % prodA)
+                                       "for production: %r") % prodA)
                             ret = "itemsets"
                 if not match:
                     return "incompatible"
@@ -1198,7 +1242,7 @@ the Parser class for parsing.
         if len(self._tokens) != len(other._tokens):
             if self._verbose:
                 print("Parsing.Spec: Unequal number of tokens (%d vs %d)" \
-                  % (len(self._tokens), len(other._tokens)))
+                      % (len(self._tokens), len(other._tokens)))
             return "incompatible"
         for key in self._tokens:
             if key not in other._tokens:
@@ -1208,23 +1252,23 @@ the Parser class for parsing.
             tokenA = self._tokens[key]
             tokenB = other._tokens[key]
             if tokenA.name != tokenB.name \
-              or tokenA.tokenType != tokenB.tokenType:
+                    or tokenA.tokenType != tokenB.tokenType:
                 if self._verbose:
                     print(type(tokenA.tokenType), type(tokenB.tokenType), tokenA.tokenType == tokenB.tokenType)
                     print("Parsing.Spec: Incompatible tokens: %r vs. %r" \
-                      % (tokenA, tokenB))
+                          % (tokenA, tokenB))
                 return "incompatible"
             if tokenA.prec.name != tokenB.prec.name:
                 if self._verbose:
                     print("Parsing.Spec: Differing precedences for token: %r" \
-                      % tokenA)
+                          % tokenA)
                 ret = "itemsets"
 
         # User start symbol.
         if self._userStartSym.name != other._userStartSym.name:
             if self._verbose:
                 print("Parsing.Spec: Differing start symbols: %s vs. %s" \
-                  % (self._userStartSym.name, other._userStartSym.name))
+                      % (self._userStartSym.name, other._userStartSym.name))
             return "incompatible"
 
         if other._skinny and ret == "itemsets":
@@ -1241,7 +1285,7 @@ the Parser class for parsing.
         lines = []
         if self._nConflicts > 0:
             lines.append("Parsing.Spec: %d unresolvable conflict%s" % \
-              (self._nConflicts, ("s", "")[self._nConflicts == 1]))
+                         (self._nConflicts, ("s", "")[self._nConflicts == 1]))
 
         # Previous code guarantees that all precedence/token/nonterm names are
         # unique.  Therefore, we can build a single dictionary here that keys on
@@ -1267,7 +1311,7 @@ the Parser class for parsing.
                 if prec not in used:
                     nUnused += 1
                     lines.append("Parsing.Spec: Unused precedence: %r" % \
-                      self._precedences[prec])
+                                 self._precedences[prec])
 
         # Tokens.
         for token in self._tokens:
@@ -1275,7 +1319,7 @@ the Parser class for parsing.
                 if token not in used:
                     nUnused += 1
                     lines.append("Parsing.Spec: Unused token: %s" % \
-                      self._tokens[token])
+                                 self._tokens[token])
 
         # Nonterms.
         for nonterm in self._nonterms:
@@ -1283,7 +1327,7 @@ the Parser class for parsing.
                 if nonterm not in used:
                     nUnused += 1
                     lines.append("Parsing.Spec: Unused nonterm: %s" % \
-                      self._nonterms[nonterm])
+                                 self._nonterms[nonterm])
 
         # Productions.
         for production in self._productions:
@@ -1293,8 +1337,8 @@ the Parser class for parsing.
 
         if nUnused > 0:
             lines.insert((1, 0)[self._nConflicts == 0], \
-              "Parsing.Spec: %d unused definition%s" % \
-              (nUnused, ("s", "")[nUnused == 1]))
+                         "Parsing.Spec: %d unused definition%s" % \
+                         (nUnused, ("s", "")[nUnused == 1]))
 
         # Write to logFile, if one was specified.
         if logFile != None:
@@ -1312,14 +1356,19 @@ the Parser class for parsing.
         # enabled, and there weren't any conflicts to cause notification via an
         # exception.
         if self._verbose:
+            def count(n, noun):
+                if n == 1:
+                    return '%d %s'%(n, noun)
+                else:
+                    return '%d %ss'%(n, noun)
             ntokens = len(self._tokens) - 1
             nnonterms = len(self._nonterms) - 1
             nproductions = len(self._productions) - 1
             lines.append(
-              "Parsing.Spec: %d token%s, %d non-terminal%s, %d production%s" \
-              % (ntokens, ("s", "")[ntokens == 1], \
-              nnonterms, ("s", "")[nnonterms == 1], \
-              nproductions, ("s", "")[nproductions == 1]))
+                "Parsing.Spec: %s, %s, %s"%(
+                    count(ntokens, "token"),
+                    count(nnonterms, "non-terminal"),
+                    count(nproductions, "production")))
             sys.stdout.write("%s\n" % "\n".join(lines))
 
     # Compute the first sets for all symbols.
@@ -1371,16 +1420,16 @@ the Parser class for parsing.
                 for prod in sym.productions:
                     # For all A ::= aBb, merge first(b) into follow(B).
                     for i in range(len(prod.rhs) - 1):
-                        for j in range(i+1, len(prod.rhs)):
-                            if not prod.rhs[i].followSetMerge( \
-                              prod.rhs[j].firstSet):
+                        for j in range(i + 1, len(prod.rhs)):
+                            if not prod.rhs[i].followSetMerge(
+                                    prod.rhs[j].firstSet):
                                 done = False
                             if epsilon not in prod.rhs[j].firstSet:
                                 break
 
                     # For A ::= ab, or A ::= aBb where first(b) contains <e>,
                     # merge follow(A) into follow(B).
-                    for i in range(len(prod.rhs)-1, -1, -1):
+                    for i in range(len(prod.rhs) - 1, -1, -1):
                         if not prod.rhs[i].followSetMerge(prod.lhs.followSet):
                             done = False
                         if epsilon not in prod.rhs[i].firstSet:
@@ -1413,7 +1462,7 @@ the Parser class for parsing.
                 if abs(len(worklist) - nwork) >= 10:
                     nwork = len(worklist)
                     sys.stdout.write("[%d/%d]" % \
-                      (len(worklist), len(self._itemSets)))
+                                     (len(worklist), len(self._itemSets)))
                     sys.stdout.flush()
 
             i = worklist.pop(0)
@@ -1466,8 +1515,8 @@ the Parser class for parsing.
 
         if self._verbose:
             print("Parsing.Spec: Generating LR(1) parsing tables (%d state%s)... " \
-              % (len(self._itemSets), \
-              ("s", "")[len(self._itemSets) == 1]), end=' ')
+                  % (len(self._itemSets), \
+                     ("s", "")[len(self._itemSets) == 1]), end=' ')
             sys.stdout.flush()
 
         itemSetsHash = self._itemSetsHash
@@ -1476,7 +1525,7 @@ the Parser class for parsing.
             if self._verbose:
                 sys.stdout.write(".")
                 sys.stdout.flush()
-            #===================================================================
+            # ===================================================================
             # _action.
             state = {}
             self._action.append(state)
@@ -1494,18 +1543,18 @@ the Parser class for parsing.
 
                     # Check if this is the start state.
                     if self._startState is None \
-                      and item.production.lhs == self._startSym \
-                      and item.dotPos == 0:
+                            and item.production.lhs == self._startSym \
+                            and item.dotPos == 0:
                         assert len(item.production.rhs) == 2
                         self._startState = len(self._action) - 1
                 # X ::= a*
                 elif item.dotPos == len(item.production.rhs):
                     for lookahead in six.iterkeys(item.lookahead):
                         self._actionAppend(state, lookahead, \
-                          ReduceAction(item.production))
+                                           ReduceAction(item.production))
                 else:
                     assert False
-            #===================================================================
+            # ===================================================================
             # _goto.
             state = {}
             self._goto.append(state)
@@ -1566,7 +1615,7 @@ the Parser class for parsing.
                 # Fill in the cells of actStats.
                 for i in range(len(acts)):
                     actI = acts[i]
-                    for j in range(i+1, len(acts)):
+                    for j in range(i + 1, len(acts)):
                         actJ = acts[j]
                         res = self._resolve(sym, actI, actJ)
                         if res == "neither":
@@ -1664,7 +1713,7 @@ the Parser class for parsing.
                 ret = "err"
             else:
                 if oldPrec.assoc != "fail" and newPrec.assoc != "fail" \
-                  and oldPrec.assoc != newPrec.assoc:
+                        and oldPrec.assoc != newPrec.assoc:
                     # Conflicting associativity.
                     ret = "err"
                 else:
@@ -1703,12 +1752,14 @@ the Parser class for parsing.
 
         return ret
 
+
 class Lr(object):
     """
 LR(1) parser.  The Lr class uses a Spec instance in order to parse
 input that is fed to it via the token() method, and terminated via the
 eoi() method.
 """
+
     def __init__(self, spec):
         """
         Constructs a new LR parser
@@ -1724,22 +1775,33 @@ eoi() method.
         self.reset()
         self._verbose = False
 
-    def __getSpec(self): return self._spec
-    def __setSpec(self, spec): raise AttributeError()
+    def __getSpec(self):
+        return self._spec
+
+    def __setSpec(self, spec):
+        raise AttributeError()
+
     spec = property(__getSpec, __setSpec)
 
-    def __getStart(self): return self._start
-    def __setStart(self, start): raise AttributeError
+    def __getStart(self):
+        return self._start
+
+    def __setStart(self, start):
+        raise AttributeError
+
     start = property(__getStart, __setStart, """
 A list of parsing results.  For LR parsing, there is only ever one
 result, but for compatibility with the Glr interface, start is a
 list.
 """)
 
-    def __getVerbose(self): return self._verbose
+    def __getVerbose(self):
+        return self._verbose
+
     def __setVerbose(self, verbose):
         assert type(verbose) == bool
         self._verbose = verbose
+
     verbose = property(__getVerbose, __setVerbose)
 
     def reset(self):
@@ -1771,7 +1833,7 @@ Signal end-of-input to the parser.
         token = EndOfInput(grammar_eoi)
         self.token(token, grammar_eoi)
 
-        assert self._stack[-1][0] == token # <$>.
+        assert self._stack[-1][0] == token  # <$>.
         if self._verbose:
             self._printStack()
             print("   --> accept")
@@ -1826,15 +1888,15 @@ Signal end-of-input to the parser.
                 self._printStack()
 
     def _printStack(self):
-            print("STACK:", end=' ')
-            for node in self._stack:
-                print("%r" % node[0], end=' ')
-            print()
-            print("      ", end=' ')
-            for node in self._stack:
-                print("%r%s" % (node[1], \
-                  (" " * (len("%r" % node[0]) - len("%r" % node[1])))), end=' ')
-            print()
+        print("STACK:", end=' ')
+        for node in self._stack:
+            print("%r" % node[0], end=' ')
+        print()
+        print("      ", end=' ')
+        for node in self._stack:
+            print("%r%s" % (node[1], \
+                            (" " * (len("%r" % node[0]) - len("%r" % node[1])))), end=' ')
+        print()
 
     def _reduce(self, production):
         nRhs = len(production.rhs)
@@ -1885,19 +1947,23 @@ Signal end-of-input to the parser.
 
         return r
 
-#===============================================================================
+
+# ===============================================================================
 # Begin graph-structured stack (GSS) classes.
 #
 
 class Gss(list):
     """Graph-structured stack."""
+
     def __init__(self, glr):
         list.__init__(self)
 
         self._glr = glr
 
+
 class Gsse(object):
     """Graph-structured stack edge."""
+
     def __init__(self, below, above, value):
         self.node = below
         above._edges.append(self)
@@ -1908,12 +1974,14 @@ class Gsse(object):
 
     def __eq__(self, other):
         if self.node != other.node \
-          or self.value != other.value:
+                or self.value != other.value:
             return False
         return True
 
+
 class Gssn(object):
     """Graph-structured stack node."""
+
     def __init__(self, below, value, nextState):
         assert isinstance(below, Gssn) or below is None
 
@@ -1928,7 +1996,10 @@ class Gssn(object):
     def __getEdge(self):
         assert len(self._edges) == 1
         return self._edges[0]
-    def __setEdge(self): raise AttributeError
+
+    def __setEdge(self):
+        raise AttributeError
+
     edge = property(__getEdge, __setEdge)
 
     def edges(self):
@@ -1970,9 +2041,10 @@ class Gssn(object):
                     path.pop(0)
         path.pop(0)
 
+
 #
 # End graph-structured stack (GSS) classes.
-#===============================================================================
+# ===============================================================================
 
 class Glr(Lr):
     """
@@ -1980,6 +2052,7 @@ GLR parser.  The Glr class uses a Spec instance in order to parse input
 that is fed to it via the token() method, and terminated via the eoi()
 method.
 """
+
     def __init__(self, spec):
         Lr.__init__(self, spec)
 
@@ -2004,7 +2077,33 @@ Feed a token to the parser.
             tokenSpec = self._spec._sym2spec[type(token)]
         self._act(token, tokenSpec)
         if len(self._gss) == 0:
-            raise SyntaxError("Unexpected token: %r" % token)
+            try:
+                offset = token.range[0]
+            except AttributeError:
+                offset = None
+            raise UnexpectedToken("Unexpected token: %r" % token, offset, token)
+
+    def token_from_class(self, cls, *args, **kwargs):
+        token_spec = kwargs.get('token_spec')
+        if token_spec is None:
+            token_spec = self._spec._sym2spec[cls]
+        else:
+            del kwargs['token_spec']
+        token = cls(token_spec, *args, **kwargs)
+        prev_gss = self._gss[:]
+        self._act(token, token_spec)
+        if len(self._gss) == 0:
+            print("unexpected:", token_spec, token_spec.tokenType)
+            for gss in prev_gss:
+                print(gss, gss.nextState)
+                action = self._spec._action[gss.nextState]
+                for k in action.keys():
+                   print(k, k.tokenType)
+            try:
+                offset = token.range[0]
+            except AttributeError:
+                offset = None
+            raise UnexpectedToken("Unexpected token: %r" % token, offset, token)
 
     def eoi(self):
         """
@@ -2066,7 +2165,7 @@ Signal end-of-input to the parser.
                                 workQ.append((path, action.production))
                                 if self._verbose:
                                     print("   --> enqueue(a) %r" % \
-                                      action.production)
+                                          action.production)
                                     print("                  %r" % path)
                             elif top not in epsilons[action.production]:
                                 assert len([path for path in top.paths(0)]) == 1
@@ -2075,7 +2174,7 @@ Signal end-of-input to the parser.
                                 workQ.append((path, action.production))
                                 if self._verbose:
                                     print("   --> enqueue(b) %r" % \
-                                      action.production)
+                                          action.production)
                                     print("                  %r" % path)
                         else:
                             # Iterate over all reduction paths through stack and
@@ -2084,7 +2183,7 @@ Signal end-of-input to the parser.
                                 workQ.append((path, action.production))
                                 if self._verbose:
                                     print("   --> enqueue(c) %r" % \
-                                      action.production)
+                                          action.production)
                                     print("                  %r" % path)
                 i += 1
 
@@ -2116,7 +2215,7 @@ Signal end-of-input to the parser.
         done = False
         for top in self._gss:
             if top.nextState == \
-              self._spec._goto[below.nextState][production.lhs]:
+                    self._spec._goto[below.nextState][production.lhs]:
                 # top is compatible with the reduction result we want to add to
                 # the set of stack tops.
                 for edge in top.edges():
@@ -2129,11 +2228,11 @@ Signal end-of-input to the parser.
                         if self._verbose:
                             if value == edge.value:
                                 print("             %s" % \
-                                  ("-" * len("%r" % edge.value)))
+                                      ("-" * len("%r" % edge.value)))
                             else:
                                 print("             %s      %s" % \
-                                  ((" " * len("%r" % edge.value)), \
-                                  "-" * len("%r" % r)))
+                                      ((" " * len("%r" % edge.value)), \
+                                       "-" * len("%r" % r)))
                         edge.value = value
                         done = True
                         break
@@ -2146,17 +2245,17 @@ Signal end-of-input to the parser.
                     # Enqueue reduction paths that were created as a result of
                     # the new link.
                     self._enqueueLimitedReductions(workQ, epsilons, edge, \
-                      symSpec)
+                                                   symSpec)
                     done = True
                 break
         if not done:
             # There is no compatible stack top, so create a new one.
             top = Gssn(below, r, \
-              self._spec._goto[below.nextState][production.lhs])
+                       self._spec._goto[below.nextState][production.lhs])
             self._gss.append(top)
             if self._verbose:
                 print("   --> shift(c) %r" % \
-                  self._spec._goto[below.nextState][production.lhs])
+                      self._spec._goto[below.nextState][production.lhs])
             self._enqueueLimitedReductions(workQ, epsilons, top.edge, symSpec)
 
     # Enqueue paths that incorporate edge.
@@ -2167,7 +2266,7 @@ Signal end-of-input to the parser.
                     if type(action) == ReduceAction:
                         if len(action.production.rhs) == 0:
                             if self._spec._goto[top.nextState] \
-                              [action.production.lhs] == top.nextState:
+                                    [action.production.lhs] == top.nextState:
                                 # Do nothing, since enqueueing a reduction
                                 # would result in performing the same reduction
                                 # twice.
@@ -2178,7 +2277,7 @@ Signal end-of-input to the parser.
                                 workQ.append((path, action.production))
                                 if self._verbose:
                                     print("   --> enqueue(d) %r" % \
-                                      action.production)
+                                          action.production)
                                     print("                  %r" % path)
                             elif top not in epsilons[action.production]:
                                 path = [top]
@@ -2186,7 +2285,7 @@ Signal end-of-input to the parser.
                                 workQ.append((path, action.production))
                                 if self._verbose:
                                     print("   --> enqueue(e) %r" % \
-                                      action.production)
+                                          action.production)
                                     print("                  %r" % path)
                         else:
                             # Iterate over all reduction paths through stack and
@@ -2196,7 +2295,7 @@ Signal end-of-input to the parser.
                                     workQ.append((path, action.production))
                                     if self._verbose:
                                         print("   --> enqueue(f) %r" % \
-                                          action.production)
+                                              action.production)
                                         print("                  %r" % path)
 
     def _shifts(self, sym, symSpec):

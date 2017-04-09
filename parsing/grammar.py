@@ -1,6 +1,5 @@
 from __future__ import print_function
-from builtins import zip
-from builtins import object
+from six.moves import zip
 import types
 import six
 import re
@@ -166,8 +165,8 @@ class SymbolSpec(str):
 
         self.name = name
         self.prec = prec
-        self.firstSet = [] # Set.
-        self.followSet = [] # Set.
+        self.firstSet = set()
+        self.followSet = set()
 
     def __repr__(self):
         return "%s" % self.name
@@ -178,7 +177,7 @@ class SymbolSpec(str):
 
     def firstSetMerge(self, sym):
         if sym not in self.firstSet:
-            self.firstSet.append(sym)
+            self.firstSet.add(sym)
             return False
         else:
             return True
@@ -187,7 +186,7 @@ class SymbolSpec(str):
         ret = True
         for sym in set:
             if sym != epsilon and sym not in self.followSet:
-                self.followSet.append(sym)
+                self.followSet.add(sym)
                 ret = False
         return ret
 
@@ -195,8 +194,6 @@ in_h = False
 
 # AKA terminal symbol.
 class TokenSpec(SymbolSpec):
-    token_re = re.compile(r"([A-Za-z][?+*]?\w*|'[^']+')")
-
     def __init__(self, name, tokenType, prec):
         assert is_token_factory(tokenType)
         assert type(name) == str
@@ -204,8 +201,6 @@ class TokenSpec(SymbolSpec):
 
         SymbolSpec.__init__(self, name, prec)
         self.tokenType = tokenType
-        if name == 'star' and in_h:
-            print("Create:", name, hex(id(self)), tokenType)
 
 # <$>.
 class EndOfInput(Token): pass
@@ -225,6 +220,7 @@ epsilon = EpsilonSpec()
 SHORTHAND = ['%choice', '%reduce']
 
 class NontermSpec(SymbolSpec):
+    token_re = re.compile(r"([A-Za-z][?+*]?\w*|'[^']+')")
     precedence_tok_re = re.compile(r'\[([A-Za-z]\w*)\]')
 
     def __init__(self, name, nontermType, qualified, prec):
@@ -268,7 +264,7 @@ class NontermSpec(SymbolSpec):
                                     nt_subclass.__doc__)
                 prec = m.group(1)
             else:
-                m = TokenSpec.token_re.match(tok)
+                m = NontermSpec.token_re.match(tok)
                 if m:
                     symbol_name = m.group(1)
                 else:
@@ -295,7 +291,7 @@ class NontermSpec(SymbolSpec):
                 if dirtoks[0] == "%reduce":
                     for i in range(1, len(dirtoks)):
                         tok = dirtoks[i]
-                        m = TokenSpec.token_re.match(tok)
+                        m = NontermSpec.token_re.match(tok)
                         if m and tok[0] == "'":
                             #print("find_literal_tokens:", tok, " in ", k)
                             literal_tokens.add(tok)
@@ -303,12 +299,12 @@ class NontermSpec(SymbolSpec):
 
 
 class Production(int):
-    seq = 0
+    cur_seq = 0
 
     def __new__(cls, *args, **kwargs):
-        result = int.__new__(cls, Production.seq)
-        result.seq = Production.seq
-        Production.seq += 1
+        result = int.__new__(cls, Production.cur_seq)
+        result.seq = Production.cur_seq
+        Production.cur_seq += 1
         return result
 
     def __init__(self, method, qualified, prec, lhs, rhs):
@@ -367,7 +363,7 @@ class Item(int):
             for elm in lookahead:
                 assert isinstance(elm, SymbolSpec)
 
-        hash = (dotPos * Production.seq) + production.seq
+        hash = (dotPos * Production.cur_seq) + production.seq
         result = int.__new__(cls, hash)
         result.hash = hash
         result.production = production

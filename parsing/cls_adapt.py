@@ -53,7 +53,7 @@ def interpret_doc_dsl(docstring, clsdict):
             elif last_char == "'":
                 arg_name = '_'
                 fn_name = 'r_const_' + hex(hash(name))
-            assert TokenSpec.token_re.match(name)
+            assert NontermSpec.token_re.match(name)
             fn_src = 'def %(fn_name)s(self, %(arg_name)s):\n  "%%reduce %(name)s"\n  return %(arg_name)s'%locals()
             #print(fn_src)
             exec(fn_src, globals(), clsdict)

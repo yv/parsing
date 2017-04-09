@@ -33,7 +33,8 @@ setup(
     packages=['parsing', 'parsing.tests', 'parsing.tests.specs'],
     test_suite='parsing.tests',
     install_requires=[
-        'six>=1.8.0'
+        'six>=1.8.0',
+        'future'
     ],
     **extra
 )

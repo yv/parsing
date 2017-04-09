@@ -36,7 +36,7 @@ class ModuleAdapter(object):
                                             % v.__doc__)
                         relationships[m.group(2)] = m.group(1)
                     else:
-                        m = TokenSpec.token_re.match(tok)
+                        m = NontermSpec.token_re.match(tok)
                         if m:
                             if i != 1:
                                 raise SpecError(("Precedence name must come before " \
@@ -68,7 +68,7 @@ class ModuleAdapter(object):
                                              + "specification: %s") % v.__doc__)
                         prec = m.group(1)
                     else:
-                        m = TokenSpec.token_re.match(tok)
+                        m = NontermSpec.token_re.match(tok)
                         if m:
                             name = m.group(1)
                         else:
