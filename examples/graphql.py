@@ -38,7 +38,7 @@ def convert_string_value(s):
 
 class GraphQLGrammar(Grammar):
     whitespace = '\s+|#.*|\n|,'
-    punctuator = mktoken('punctuator', tokens='= |')
+    #punctuator = mktoken('punctuator', tokens='= |')
     Name = mktoken('Name', re='[_A-Za-z][_0-9A-Za-z]*')
     IntValue = mktoken('IntValue', re='-?(?:0|[1-9]\d*)', convert=int)
     FloatValue = mktoken('FloatValue', re=r'-?(?:0|[1-9]\d*)(?:\.\d+(?:[eE]\d+)?|[eE]\d+)', convert=float)
