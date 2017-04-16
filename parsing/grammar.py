@@ -1,10 +1,10 @@
 from __future__ import print_function
-from six.moves import zip
 import types
 import six
 import re
 import sys
 from parsing.ast import Token, is_token_factory
+from parsing.errors import SpecError
 
 class Precedence(object):
     """
@@ -133,13 +133,6 @@ Following are some examples of how to specify precedence classes:
 
 none = Precedence('none', 'fail', {})
 
-class SpecError(Exception):
-    """
-Specification error exception.  SpecError arises when the Spec
-introspection machinery detects an error either during docstring parsing
-or parser specification generation.
-"""
-
 class SymbolSpec(str):
     seq_cur = 0
     def __new__(cls, name=None, *args, **kwargs):
@@ -217,7 +210,6 @@ class EpsilonSpec(TokenSpec):
         TokenSpec.__init__(self, "<e>", Epsilon, "none")
 epsilon = EpsilonSpec()
 
-SHORTHAND = ['%choice', '%reduce']
 
 class NontermSpec(SymbolSpec):
     token_re = re.compile(r"([A-Za-z][?+*]?\w*|'[^']+')")
@@ -245,7 +237,7 @@ class NontermSpec(SymbolSpec):
         else:
             dirtoks = nt_subclass.__doc__.strip().split()
         is_start = (dirtoks[0] == '%start')
-        if dirtoks[0] in SHORTHAND:
+        if dirtoks[0][0] == '%' and dirtoks[0] not in ['%nonterm', '%start']:
             dirtoks = ['%nonterm', name]
         symbol_name = None
         prec = None
@@ -253,12 +245,13 @@ class NontermSpec(SymbolSpec):
         while i < len(dirtoks):
             tok = dirtoks[i]
             #print("from_class dirtok:", tok)
-            if tok in ['%choice', '%reduce']:
-                # ignore shorthand notation parts
-                break
+            if tok[0] == '%':
+                if tok not in ['%start', '%nonterm']:
+                    #print("special:", tok, name)
+                    break
             m = NontermSpec.precedence_tok_re.match(tok)
             if m:
-                if i < len(dirtoks) - 1:
+                if i < len(dirtoks) - 1 and dirtoks[i+1][0] != '%':
                     raise SpecError(("Precedence must come last in " \
                                      + "non-terminal specification: %s") % \
                                     nt_subclass.__doc__)
@@ -286,13 +279,14 @@ class NontermSpec(SymbolSpec):
         for k in d:
             v = d[k]
             if isinstance(v, types.FunctionType) and isinstance(v.__doc__, str):
-                #print("find_literal_tokens:", nt_subclass.__name__, k, v.__doc__)
                 dirtoks = v.__doc__.split(" ")
                 if dirtoks[0] == "%reduce":
                     for i in range(1, len(dirtoks)):
                         tok = dirtoks[i]
                         m = NontermSpec.token_re.match(tok)
                         if m and tok[0] == "'":
+                            while tok[-1] in '?*+':
+                                tok = tok[:-1]
                             #print("find_literal_tokens:", tok, " in ", k)
                             literal_tokens.add(tok)
 
@@ -368,7 +362,7 @@ class Item(int):
         result.hash = hash
         result.production = production
         result.dotPos = dotPos
-        result.lookahead = dict(list(zip(lookahead, lookahead)))
+        result.lookahead = dict(list(six.moves.zip(lookahead, lookahead)))
         return result
 
     def __repr__(self):

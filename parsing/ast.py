@@ -1,5 +1,6 @@
 from __future__ import print_function
 from re import compile as re_compile, escape as re_escape
+from parsing.errors import SpecError
 
 def is_symspec(symSpec):
     return hasattr(symSpec, 'name') and hasattr(symSpec, 'prec')
@@ -194,7 +195,8 @@ def is_token_factory(tokenType):
         return True
     return False
 
-def mktoken(name, prec='none', re=None, s=None, tokens=None, keyword=None, convert=None):
+def mktoken(name, prec='none', re=None, s=None, tokens=None, keyword=None,
+                between=None, escape=None, convert=None):
     """
     creates a token class (that is then converted into a TokenSpec), i.e. this is
     a Token factory factory.
@@ -214,7 +216,26 @@ def mktoken(name, prec='none', re=None, s=None, tokens=None, keyword=None, conve
     elif s is not None:
         token_re = re_escape(s)
     elif tokens is not None:
-        token_re = '(?:%s)'%('|'.join([re_escape(tok) for tok in tokens.split()]))
+        token_re = '(?:%s)'%(
+            '|'.join([re_escape(tok) for tok in tokens.split()]))
+    elif between is not None:
+        if len(between) != 2:
+            raise SpecError("Need exactly two items for between: %s"%(between,))
+        starter, ender = between
+        not_enders = []
+        for i in xrange(len(ender)):
+            not_enders.append('{}[^{}]'.format(
+                re_escape(ender[:i]), re_escape(ender[i])))
+        token_re = '{}(?:{})*{}'.format(
+            re_escape(starter),
+            '|'.join([x for x in not_enders]),
+            re_escape(ender))
+        #print(token_re)
+        if convert is None:
+            def my_convert(s):
+                assert s.startswith(starter) and s.endswith(ender)
+                return s[len(starter):-len(ender)]
+            convert = my_convert
     else:
         token_re = None
 

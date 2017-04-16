@@ -15,7 +15,7 @@ Nonterm = GrammarK.nonterm_base()
 
 
 # Non-terminal definitions.
-class NontermE(Nonterm):
+class E(Nonterm):
     "%start E"
     def reduceA(self, E, plus, T):
         "%reduce E plus T [p1]"
@@ -35,7 +35,7 @@ class T(Nonterm):
         "%reduce F"
         self.val = F.val
 
-class NontermF(Nonterm):
+class F(Nonterm):
     "%nonterm F [p2]"
     def reduceA(self, lparen, E, rparen):
         "%reduce lparen E rparen"
