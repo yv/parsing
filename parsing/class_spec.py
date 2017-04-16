@@ -1,6 +1,6 @@
 from __future__ import print_function
 import re
-from parsing.ast_objs import Nonterm, TokenBuilder, is_token_factory
+from parsing.ast import Nonterm, TokenBuilder, is_token_factory
 from parsing.grammar import Precedence, TokenSpec, NontermSpec, SpecError
 from parsing.lr_automaton import Spec, Lr
 from parsing.scanner import Scanner
@@ -169,7 +169,6 @@ class Grammar(with_metaclass(GrammarMetaclass, object)):
             builder = TokenBuilder(re.escape(clean_token), keyword=keyword, name=token)
             result.append(TokenSpec(token, builder, 'none'))
         cls._tokens = result
-        print(result)
         return result
 
     @classmethod

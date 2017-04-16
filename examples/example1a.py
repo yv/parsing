@@ -58,9 +58,9 @@ from __future__ import division
 
 import sys
 import parsing
-from parsing.ast_objs import mktoken
+from parsing.ast import mktoken
 from parsing.grammar import Precedence
-from parsing.cls_adapt import Grammar
+from parsing.class_spec import Grammar
 
 
 # ===============================================================================

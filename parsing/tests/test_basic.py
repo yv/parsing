@@ -159,6 +159,64 @@ class TestParsing(unittest.TestCase):
         self.assertEqual(len(parser.start), 1)
         self.assertEqual(parser.start[0].val, '[[ID * ID] + ID]')
 
+    def test_basic_j(self):
+        class TestParser(parsing.Lr):
+            def __init__(self, spec):
+                parsing.Lr.__init__(self, spec)
+
+        from parsing.tests.specs import j
+        spec = j.GrammarJ.spec()
+
+        parser = TestParser(spec)
+        parser.token_from_class(j.GrammarJ.id)
+        parser.token_from_class(j.GrammarJ.star)
+        parser.token_from_class(j.GrammarJ.id)
+        parser.token_from_class(j.GrammarJ.plus)
+        parser.token_from_class(j.GrammarJ.id)
+        parser.eoi()
+        self.assertEqual(len(parser.start), 1)
+        self.assertEqual(parser.start[0].val, '[[ID * ID] + ID]')
+
+        parser = TestParser(spec)
+        parser.token_from_class(j.GrammarJ.id)
+        parser.token_from_class(j.GrammarJ.plus)
+        parser.token_from_class(j.GrammarJ.id)
+        parser.token_from_class(j.GrammarJ.star)
+        parser.token_from_class(j.GrammarJ.id)
+        parser.eoi()
+        self.assertEqual(len(parser.start), 1)
+        self.assertEqual(parser.start[0].val, '[ID + [ID * ID]]')
+
+        parser = TestParser(spec)
+        parser.token_from_class(j.GrammarJ.id)
+        parser.token_from_class(j.GrammarJ.star)
+        parser.token_from_class(j.GrammarJ.lparen)
+        parser.token_from_class(j.GrammarJ.id)
+        parser.token_from_class(j.GrammarJ.plus)
+        parser.token_from_class(j.GrammarJ.id)
+        parser.token_from_class(j.GrammarJ.rparen)
+        parser.eoi()
+        self.assertEqual(len(parser.start), 1)
+        self.assertEqual(parser.start[0].val, '[ID * ([ID + ID])]')
+
+    def test_basic_k(self):
+
+        from parsing.tests.specs import k
+
+        parser = k.GrammarK.parser()
+        parser.scan("a*b+c")
+        self.assertEqual(len(parser.start), 1)
+        self.assertEqual(parser.start[0].val, '[[ID * ID] + ID]')
+
+        parser = k.GrammarK.parser()
+        parser.scan('a+b*c')
+        self.assertEqual(len(parser.start), 1)
+        self.assertEqual(parser.start[0].val, '[ID + [ID * ID]]')
+
+        parser = k.GrammarK.parser()
+        parser.scan('a*(b+c)')
+        self.assertEqual(len(parser.start), 1)
+        self.assertEqual(parser.start[0].val, '[ID * ([ID + ID])]')
 
 if __name__ == '__main__':
     unittest.main()

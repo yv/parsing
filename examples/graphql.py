@@ -212,7 +212,7 @@ class Directive(Nonterm):
     "%reduce '@' Name Arguments?"
 
 if __name__ == '__main__':
-    from parsing.ast_objs import bcolors
+    from parsing.ast import bcolors
     attribute_order = [
         'op_type', 'name', 'fragment_name', 'variable',
         'variable_definitions', 'type_condition']

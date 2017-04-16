@@ -4,7 +4,7 @@ import types
 import six
 import re
 import sys
-from parsing.ast_objs import Token, is_token_factory
+from parsing.ast import Token, is_token_factory
 
 class Precedence(object):
     """

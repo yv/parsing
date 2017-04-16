@@ -138,7 +138,7 @@ import types
 import six
 import six.moves.cPickle
 
-from parsing.ast_objs import Nonterm, Token, \
+from parsing.ast import Nonterm, Token, \
     NontermStart
 from parsing.grammar import Precedence, Production, \
     TokenSpec, SymbolSpec, NontermSpec, Item, \
@@ -515,8 +515,8 @@ verbose : If true, print progress information while generating the
 
         if isinstance(grammar_adapter, types.ModuleType):
             # Compatibility with parsing 1.5: use a ModuleAdapter for modules
-            from parsing.mod_adapt import ModuleAdapter
-            grammar_adapter = ModuleAdapter(grammar_adapter)
+            from parsing.module_spec import ModuleSpecSource
+            grammar_adapter = ModuleSpecSource(grammar_adapter)
 
         self._skinny = skinny
         self._verbose = verbose
@@ -1789,7 +1789,7 @@ eoi() method.
     def __setStart(self, start):
         raise AttributeError
 
-    start = property(__getStart, __setStart, """
+    start = property(__getStart, __setStart, doc="""
 A list of parsing results.  For LR parsing, there is only ever one
 result, but for compatibility with the Glr interface, start is a
 list.
@@ -1931,7 +1931,10 @@ Signal end-of-input to the parser.
                     first_rhs = rhs[first_idx]
                     if isinstance(first_rhs, list):
                         first_rhs = first_rhs[0]
-                    sym.range = [first_rhs.range[0], last_rhs.range[1]]
+                    if first_rhs.range is not None and last_rhs.range is not None:
+                        sym.range = [first_rhs.range[0], last_rhs.range[1]]
+                    else:
+                        sym.range = None
             except AttributeError:
                 pass
         nRhs = len(rhs)

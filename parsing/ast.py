@@ -180,7 +180,7 @@ class TokenBuilder(object):
     def __ne__(self, other):
         return not self == other
 
-    def __call__(self, symSpec, word, range, **kwargs):
+    def __call__(self, symSpec, word=None, range=None, **kwargs):
         if self.convert is None:
             val = word
         else:

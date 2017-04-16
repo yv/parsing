@@ -53,7 +53,7 @@ from __future__ import division
 from __future__ import print_function
 import sys
 import parsing as Parsing
-from parsing.mod_adapt import ModuleAdapter
+from parsing.module_spec import ModuleSpecSource
 
 
 # ===============================================================================
@@ -209,7 +209,7 @@ class Parser(Parsing.Lr):
 
 # Introspect this module to generate a parser.  Enable all the bells and
 # whistles.
-adapter = ModuleAdapter(sys.modules[__name__])
+adapter = ModuleSpecSource(sys.modules[__name__])
 spec = Parsing.Spec(adapter,
                     pickleFile="example1.pickle",
                     skinny=False,

@@ -1,9 +1,12 @@
-from builtins import object
 import types
 from parsing.grammar import Precedence, TokenSpec, NontermSpec, SpecError
-from parsing.ast_objs import Token, Nonterm
+from parsing.ast import Token, Nonterm
 
-class ModuleAdapter(object):
+class ModuleSpecSource(object):
+    """
+    ModuleSpecSource scans one or several modules for subclasses of relevant
+    classes (Precedence, Token, Nonterm) with specific docstrings.
+    """
     def __init__(self, modules):
         if type(modules) == types.ModuleType:
             # Wrap single module in a list.
@@ -16,8 +19,13 @@ class ModuleAdapter(object):
                     dirtoks = v.__doc__.split(" ")
                     items.append((module, k, v, dirtoks))
         self.named_objs = items
+        self._cache_precedences = None
+        self._cache_tokens = None
+        self._cache_nonterminals = None
 
     def get_precedences(self):
+        if self._cache_precedences is not None:
+            return self._cache_precedences
         result = []
         for module, k, v, dirtoks in self.named_objs:
             if issubclass(v, Precedence) and dirtoks[0] in \
@@ -50,9 +58,12 @@ class ModuleAdapter(object):
 
                 prec = Precedence(name, dirtoks[0][1:], relationships)
                 result.append(prec)
+        self._cache_precedences = result
         return result
 
     def get_tokens(self):
+        if self._cache_tokens is not None:
+            return self._cache_tokens
         result = []
         for module, k, v, dirtoks in self.named_objs:
             if issubclass(v, Token) and dirtoks[0] in ["%token"]:
@@ -82,6 +93,8 @@ class ModuleAdapter(object):
         return result
 
     def get_nonterminals(self):
+        if self._cache_nonterminals is not None:
+            return self._cache_nonterminals
         result = []
         startSym = None
         for module, k, v, dirtoks in self.named_objs:
@@ -96,5 +109,5 @@ class ModuleAdapter(object):
                         raise SpecError("Only one start non-terminal allowed: %s" \
                                         % v.__doc__)
                     startSym = nonterm
-
+        self._cache_nonterminals = (result, startSym)
         return result, startSym
