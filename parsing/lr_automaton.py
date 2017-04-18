@@ -102,20 +102,14 @@ import types
 
 import six
 
+from parsing.errors import SpecError, UnexpectedToken
 from parsing.ast import Nonterm, Token, \
     NontermStart
 from parsing.grammar import Precedence, Production, \
     TokenSpec, SymbolSpec, NontermSpec, Item, \
-    Epsilon, epsilon, EndOfInput, eoi, SpecError
+    Epsilon, epsilon, EndOfInput, eoi
 
 RETURN_NONE = object()
-
-
-class UnexpectedToken(SyntaxError):
-    def __init__(self, message, offset, token):
-        SyntaxError.__init__(self, message)
-        self.offset = offset
-        self.token = token
 
 
 class String(list):

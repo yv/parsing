@@ -1,7 +1,7 @@
 from parsing import Grammar, mktoken
 
 class GrammarM(Grammar):
-    Id = mktoken('Id', re='[a-zA-Z][a-zA-Z0-9]*')
+    Name = mktoken('Name', re='[a-zA-Z][a-zA-Z0-9]*')
     Str = mktoken('Str', between='""')
     Num = mktoken('Num', re='[0-9]+', convert=int)
 
@@ -20,7 +20,7 @@ class Declaration(Nonterm):
 
 class FunctionDecl(Declaration):
     """
-    %reduce Modifier* Type Id '(' ArgList ')' Body
+    %reduce Modifier* Type Name '(' ArgList ')' Body
     """
 
 class Modifier(Nonterm):
@@ -41,16 +41,10 @@ class ArgSpec(Nonterm):
     %reduce Name ':' Type '=' Expr
     """
 
-class Name(Nonterm):
-    """
-    %choice Id
-    """
-
 class Type(Nonterm):
-    def r_name(self, name):
-        "%reduce Id"
-        self.type = "NamedType"
-        self.name = name
+    """
+    %reduce:NamedType Name
+    """
 
 class Expr(Nonterm):
 
@@ -58,7 +52,7 @@ class Expr(Nonterm):
         "%reduce Num"
         self.type = "NumExpr"
         self.val = num
-    
+
     def r_str(self, s):
         "%reduce Str"
         self.type = "StrExpr"
@@ -68,7 +62,7 @@ class Expr(Nonterm):
         "%reduce Name"
         self.type = "VarExpr"
         self.name = name
-    
+
     def r_call(self, fn_name, _lp, args, _rp):
         "%reduce Name '(' CallArgs ')'"
         self.type = 'CallExpr'

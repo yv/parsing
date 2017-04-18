@@ -30,6 +30,11 @@ class UnexpectedToken(ParsingError, SyntaxError):
     a syntax error according to the Spec it is using, for the input being
     fed to it.
     """
+    def __init__(self, message, offset=None, token=None):
+        SyntaxError.__init__(self, message)
+        self.offset = offset
+        self.token = token
+
 
 #
 # End exceptions.
