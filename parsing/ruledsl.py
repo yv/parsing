@@ -14,6 +14,7 @@ all_cap_re = re.compile('([a-z0-9])([A-Z])')
 
 snaked_re = re.compile('_[a-z]')
 
+rhs_assign_re = re.compile("([A-Za-z]\w*)([+?]?=)([A-Za-z]\w*[?+*]?|'[^']+')")
 identifier_re = re.compile('[a-zA-Z][0-9a-zA-Z]*$')
 symbol_names = {
     ';': 'semicolon',
@@ -76,8 +77,8 @@ class Generator(object):
         for the class dictionary.
         """
         text = '\n'.join(lines)
-        # print(self.name, "COMPILED")
-        # print(text)
+        #print(self.name, "COMPILED")
+        #print(text)
         exec text in globals(), self.clsdict
 
     def compile_reduce(self, lst):
@@ -93,31 +94,37 @@ class Generator(object):
         rhs_parts = []
         arg_names = []
         for rhs in lst[1:]:
+            m = rhs_assign_re.match(rhs)
+            if m:
+                assigned_name = m.group(1)
+                assign_op = m.group(2)
+                rhs = m.group(3)
+            else:
+                assigned_name = None
+            suffix = ''
+            rhs_parts.append(rhs)
             last_char = rhs[-1]
+            while last_char in '+*?':
+                suffix += 's'
+                rhs = rhs[:-1]
+                last_char = rhs[-1]
             if last_char == "'":
                 arg_name = '_'
-            elif last_char in [']']:
-                rhs_parts.append(rhs)
-                continue
-            elif last_char in '+*?':
-                arg_name = snake_case(rhs[:-1])
-                if arg_name[-1] == "'":
-                    arg_name = '_'
-                if last_char in '+*':
-                    # CheeseDeclaration+ => cheese_declarations
-                    arg_name += 's'
             else:
-                arg_name = snake_case(rhs)
-            rhs_parts.append(rhs)
-            arg_suffix = 1
-            orig_arg_name = arg_name
-            if arg_name in ['type', 'range']:
-                arg_name += '_'
-            while arg_name in arg_names:
-                arg_suffix += 1
-                arg_name = '%s%d' % (orig_arg_name, arg_suffix)
-            arg_names.append(arg_name)
-        lst_rhs = ' '.join(['%reduce'] + lst[1:])
+                # CheeseDeclaration+ => cheese_declarations
+                arg_name = snake_case(rhs) + suffix
+            if assigned_name is not None:
+                arg_names.append(assigned_name)
+            else:
+                arg_suffix = 1
+                orig_arg_name = arg_name
+                if arg_name in ['type', 'range']:
+                    arg_name += '_'
+                while arg_name in arg_names:
+                    arg_suffix += 1
+                    arg_name = '%s%d' % (orig_arg_name, arg_suffix)
+                arg_names.append(arg_name)
+        lst_rhs = ' '.join(['%reduce'] + rhs_parts)
         argspec = ', '.join(arg_names)
         fillers = {
             'fn_name': fn_name, 'argspec': argspec,

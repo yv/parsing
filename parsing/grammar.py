@@ -212,7 +212,7 @@ epsilon = EpsilonSpec()
 
 
 class NontermSpec(SymbolSpec):
-    token_re = re.compile(r"([A-Za-z][?+*]?\w*|'[^']+')")
+    token_re = re.compile(r"([A-Za-z]\w*[?+*]?|'[^']+')")
     precedence_tok_re = re.compile(r'\[([A-Za-z]\w*)\]')
 
     def __init__(self, name, nontermType, qualified, prec):

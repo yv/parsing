@@ -107,7 +107,7 @@ class TestParsing(unittest.TestCase):
 
     def test_basic_h(self):
         import parsing.grammar
-        import parsing.lr_automaton
+        import parsing.automaton
         parsing.grammar.in_h = True
         class TestGlrParser(parsing.Glr):
             def __init__(self, spec):

@@ -2,7 +2,7 @@ from __future__ import print_function
 import re
 from parsing.ast import Nonterm, TokenBuilder, is_token_factory
 from parsing.grammar import Precedence, TokenSpec, NontermSpec, SpecError
-from parsing.lr_automaton import Spec, Lr
+from parsing.automaton import Spec, Lr
 from parsing.scanner import Scanner
 from parsing.ruledsl import interpret_docstring
 from types import MethodType, FunctionType

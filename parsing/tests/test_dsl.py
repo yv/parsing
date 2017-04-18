@@ -1,5 +1,5 @@
 import unittest
-from parsing.ast import print_ast
+#from parsing.ast import print_ast
 
 def conforms(ast, description):
     if isinstance(description, str):
