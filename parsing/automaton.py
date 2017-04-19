@@ -1816,13 +1816,14 @@ Signal end-of-input to the parser.
         while True:
             top = self._stack[-1]
             if symSpec not in self._spec._action[top[1]]:
-                print(symSpec, hex(id(symSpec)), hex(hash(symSpec)))
-                for k in self._spec._action[top[1]]:
-                    print("action:", k, hex(id(k)), hex(hash(k)), k == symSpec)
-                if hasattr(self._spec, 'itemSets'):
-                    print(self._spec._itemSets[top[1]])
-                print(self._spec._action[top[1]])
-                print(self._spec._goto[top[1]])
+                if self._verbose:
+                    print(symSpec, hex(id(symSpec)), hex(hash(symSpec)))
+                    for k in self._spec._action[top[1]]:
+                        print("action:", k, hex(id(k)), hex(hash(k)), k == symSpec)
+                    if hasattr(self._spec, 'itemSets'):
+                        print(self._spec._itemSets[top[1]])
+                    print(self._spec._action[top[1]])
+                    print(self._spec._goto[top[1]])
                 try:
                     offset = sym.range[0]
                 except AttributeError:
