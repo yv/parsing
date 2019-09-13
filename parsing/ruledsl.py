@@ -79,7 +79,7 @@ class Generator(object):
         text = '\n'.join(lines)
         #print(self.name, "COMPILED")
         #print(text)
-        exec text in globals(), self.clsdict
+        exec(text, globals(), self.clsdict)
 
     def compile_reduce(self, lst):
         """

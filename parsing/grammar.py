@@ -131,6 +131,9 @@ Following are some examples of how to specify precedence classes:
         return "[%%%s %s ={%s} <{%s}]" % (self.assoc, self.name, \
           ",".join(equiv), ",".join(domin))
 
+    def __hash__(self):
+        return id(self)
+
 none = Precedence('none', 'fail', {})
 
 class SymbolSpec(str):
